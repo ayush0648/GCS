@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project File Upload</title>
+</head>
+<body>
+    <h1>Upload Project Files</h1>
+    <form id="uploadForm">
+        <label for="customerId">Customer ID:</label>
+        <input type="text" id="customerId" name="customerId" required><br><br>
+        
+        <label for="projectId">Project ID:</label>
+        <input type="text" id="projectId" name="projectId" required><br><br>
+        
+        <label for="projectFile">Select Project File:</label>
+        <input type="file" id="projectFile" name="projectFile" required><br><br>
+        
+        <button type="submit">Upload</button>
+    </form>
+
+    <!-- Include the Google API Client Library -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script>
+        const CLIENT_ID = '915207192293-1bihrimd1rhlblbfqm7ot6qb5qct405u.apps.googleusercontent.com';
+        const API_KEY = 'AIzaSyBhWzvuBX2X3CnCzusRLz1mHR65cX1REFg';
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+        function authenticate() {
+            return gapi.auth2.getAuthInstance()
+                .signIn({scope: SCOPES})
+                .then(() => {
+                    console.log('Sign-in successful');
+                }, (err) => {
+                    console.error('Error signing in', err);
+                });
+        }
+
+        function loadClient() {
+            gapi.client.setApiKey(API_KEY);
+            return gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest')
+                .then(() => {
+                    console.log('GAPI client loaded for API');
+                }, (err) => {
+                    console.error('Error loading GAPI client for API', err);
+                });
+        }
+
+        function createFolder(folderName, parentFolderId = null) {
+            const fileMetadata = {
+                'name': folderName,
+                'mimeType': 'application/vnd.google-apps.folder'
+            };
+            if (parentFolderId) {
+                fileMetadata['parents'] = [parentFolderId];
+            }
+
+            return gapi.client.drive.files.create({
+                resource: fileMetadata,
+                fields: 'id'
+            }).then(response => {
+                return response.result.id;
+            });
+        }
+
+        function uploadFile(file, parentFolderId) {
+            const metadata = {
+                name: file.name,
+                mimeType: file.type,
+                parents: [parentFolderId]
+            };
+
+            const formData = new FormData();
+            formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            formData.append('file', file);
+
+            return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + gapi.auth.getToken().access_token
+                },
+                body: formData
+            }).then(response => response.json())
+            .then(data => {
+                console.log('File uploaded successfully', data);
+            }).catch(err => {
+                console.error('Error uploading file', err);
+            });
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const customerId = document.getElementById('customerId').value;
+            const projectId = document.getElementById('projectId').value;
+            const file = document.getElementById('projectFile').files[0];
+
+            if (!file) {
+                console.error('No file selected for upload.');
+                return;
+            }
+
+            authenticate().then(() => {
+                createFolder(customerId).then(customerFolderId => {
+                    createFolder(projectId, customerFolderId).then(projectFolderId => {
+                        uploadFile(file, projectFolderId);
+                    });
+                });
+            });
+        });
+
+        gapi.load('client:auth2', function() {
+            gapi.auth2.init({client_id: CLIENT_ID});
+        });
+    </script>
+</body>
+</html>
