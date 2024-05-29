@@ -32,8 +32,10 @@
                 .signIn({scope: SCOPES})
                 .then(() => {
                     console.log('Sign-in successful');
+                    document.getElementById('status').innerText = 'Sign-in successful';
                 }, (err) => {
                     console.error('Error signing in', err);
+                    document.getElementById('status').innerText = 'Error signing in';
                 });
         }
 
@@ -42,8 +44,10 @@
             return gapi.client.load('https://www.googleapis.com/discovery/v1/apis/drive/v3/rest')
                 .then(() => {
                     console.log('GAPI client loaded for API');
+                    document.getElementById('status').innerText = 'GAPI client loaded for API';
                 }, (err) => {
                     console.error('Error loading GAPI client for API', err);
+                    document.getElementById('status').innerText = 'Error loading GAPI client for API';
                 });
         }
 
@@ -60,7 +64,13 @@
                 resource: fileMetadata,
                 fields: 'id'
             }).then(response => {
+                console.log(`Folder created: ${folderName}, ID: ${response.result.id}`);
+                document.getElementById('status').innerText = `Folder created: ${folderName}`;
                 return response.result.id;
+            }).catch(error => {
+                console.error('Error creating folder', error);
+                document.getElementById('status').innerText = 'Error creating folder';
+                throw error;
             });
         }
 
@@ -84,8 +94,11 @@
             }).then(response => response.json())
             .then(data => {
                 console.log('File uploaded successfully', data);
+                document.getElementById('status').innerText = 'File uploaded successfully';
             }).catch(err => {
                 console.error('Error uploading file', err);
+                document.getElementById('status').innerText = 'Error uploading file';
+                throw err;
             });
         }
 
@@ -98,15 +111,22 @@
 
             if (!file) {
                 console.error('No file selected for upload.');
+                document.getElementById('status').innerText = 'No file selected for upload';
                 return;
             }
 
             authenticate().then(() => {
                 createFolder(customerId).then(customerFolderId => {
                     createFolder(projectId, customerFolderId).then(projectFolderId => {
-                        uploadFile(file, projectFolderId);
+                        uploadFile(file, projectFolderId).then(() => {
+                            console.log('Upload process completed successfully.');
+                            document.getElementById('status').innerText = 'Upload process completed successfully';
+                        });
                     });
                 });
+            }).catch(err => {
+                console.error('Error in the upload process', err);
+                document.getElementById('status').innerText = 'Error in the upload process';
             });
         });
 
@@ -114,6 +134,6 @@
             gapi.auth2.init({client_id: CLIENT_ID});
         });
     </script>
+    <p id="status"></p>
 </body>
-</html>
-
+</html>s
